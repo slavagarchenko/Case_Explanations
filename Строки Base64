@@ -1,0 +1,70 @@
+Этот код пытается найти и расшифровать строки в формате Base64 из переданного текста. Разберем его по частям:
+
+Что делает функция:
+
+1. Поиск потенциальных Base64 строк:
+
+```python
+pattern = r'[A-Za-z0-9+/]+={0,2}'
+```
+
+· Ищет последовательности символов Base64 (буквы, цифры, +, /)
+· ={0,2} - допускает 0, 1 или 2 знака = в конце (padding в Base64)
+
+1. Декодирование найденных строк:
+
+```python
+message_in_bytes = message.encode('ascii')  # Преобразуем в байты
+decoded_bytes = base64.b64decode(message_in_bytes)  # Декодируем Base64
+decoded_message = codecs.decode(decoded_bytes, 'utf-8')  # Декодируем в строку
+```
+
+1. Возврат уникальных результатов:
+
+```python
+return list(set(decrypt_message))
+```
+
+· Удаляет дубликаты через преобразование в set
+· Возвращает список уникальных расшифрованных сообщений
+
+Пример использования:
+
+```python
+text = "Привет SGVsbG8gV29ybGQ= это Base64"
+result = find_and_decrypt_base64(text)
+# result будет содержать: ['Hello World']
+```
+
+Проблемы кода:
+
+1. Ложные срабатывания: Регулярное выражение может находить случайные последовательности символов, которые выглядят как Base64
+2. Потеря порядка: set() нарушает порядок найденных элементов
+3. Избыточность: codecs.decode() не нужен, можно использовать decoded_bytes.decode('utf-8')
+4. Слишком широкий перехват исключений: Ловит все исключения, что может скрыть реальные ошибки
+
+Улучшенная версия:
+
+```python
+def find_and_decrypt_base64(text) -> list:
+    pattern = r'[A-Za-z0-9+/]{4,}={0,2}'  # Минимум 4 символа
+    potential_matches = re.findall(pattern, text)
+    decrypt_message = []
+    
+    for message in potential_matches:
+        # Проверяем длину (должна быть кратна 4)
+        if len(message) % 4 != 0:
+            continue
+            
+        try:
+            decoded_bytes = base64.b64decode(message)
+            decoded_message = decoded_bytes.decode('utf-8')
+            decrypt_message.append(decoded_message)
+        except (UnicodeDecodeError, binascii.Error):
+            # Игнорируем только ошибки декодирования
+            continue
+    
+    return decrypt_message  # Сохраняем порядок
+```
+
+Функция полезна для анализа текстов, где могут быть скрыты сообщения в Base64.
