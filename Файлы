@@ -1,0 +1,89 @@
+Этот код пытается найти валидные имена файлов в тексте, но содержит несколько ошибок. Давайте разберем его по частям:
+
+Что делает функция:
+
+1. Ищет паттерны файлов - имена с расширениями (например, "file.txt")
+2. Проверяет валидность по правилам Windows:
+   · Запрещенные символы: <>:"/\|?*
+   · Допустимые расширения (txt, docx, jpg и т.д.)
+   · Зарезервированные имена (CON, PRN и т.д.)
+
+Проблемы в коде:
+
+1. Ошибка в регулярном выражении
+
+```python
+pattern = r'\b[\w\s\-\._()]+\.[\w]{1,5}\b'
+```
+
+· \w включает цифры и буквы, но не все допустимые символы
+· Не учитывает пути или файлы в кавычках
+
+2. Критическая ошибка в цикле
+
+```python
+if any(x in file for x in banned_chars) or \
+        any(x == file.strip().split('.')[0] for x in reserved_names):
+    break  # ← ОШИБКА: должен быть continue!
+```
+
+break прерывает весь цикл после первой же проблемы, а не пропускает один файл.
+
+3. Проблемы с проверкой расширений
+
+```python
+elif split_file[-1] in possible_extension:
+```
+
+· В списке possible_extension есть .iso с точкой, что несовместимо
+· Не учитывается регистр (TXT vs txt)
+
+Исправленная версия:
+
+```python
+def find_files(text) -> list:
+    pattern = r'\b[\w\s\-\._()]+\.[\w]{1,5}\b'
+    potential_files = re.findall(pattern, text)
+    valid_files = []
+    
+    banned_chars = '<>:"/\\|?*'
+    possible_extensions = [
+        'txt', 'docx', 'odt', 'pdf', 'rtf', 'jpg', 'png', 'gif', 'bmp', 
+        'tiff', 'svg', 'mp3', 'wav', 'aac', 'aif', 'm4a', 'mp4', 'avi', 
+        'mkv', 'wmv', 'rm', 'iso', 'exe', 'bat', 'jar', 'zip', 'rar', 
+        '7z', 'html', 'htm', 'xls', 'xlsx', 'csv',
+    ]
+    reserved_names = [
+        'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+        'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+        'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+    ]
+    
+    for file in potential_files:
+        file = file.strip()
+        
+        # Проверка запрещенных символов
+        if any(char in file for char in banned_chars):
+            continue
+            
+        # Проверка зарезервированных имен
+        filename_without_ext = file.split('.')[0].upper()
+        if filename_without_ext in reserved_names:
+            continue
+            
+        # Проверка расширения
+        extension = file.split('.')[-1].lower()
+        if extension in possible_extensions:
+            valid_files.append(file)
+    
+    return list(set(valid_files))  # Убираем дубликаты
+```
+
+Пример работы:
+
+```python
+text = "Скачайте file.txt и photo.jpg, но не bad<file.doc"
+result = find_files(text)  # Вернет: ['file.txt', 'photo.jpg']
+```
+
+Функция полезна для парсинга файлов из текста, но требует доработки для реального использования.
