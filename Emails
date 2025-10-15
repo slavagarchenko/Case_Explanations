@@ -1,0 +1,67 @@
+Данная функция find_emails предназначена для поиска и валидации email-адресов в тексте. Разберем ее по шагам:
+
+Алгоритм работы функции:
+
+1. Загрузка белого списка доменов
+   ```python
+   f = open('data.iana.txt')
+   possible_domain = f.readlines()
+   possible_domain = [el.strip() for el in possible_domain]
+   ```
+   · Открывается файл с разрешенными доменными именами
+   · Читаются все строки и убираются лишние пробелы/переносы
+2. Поиск email-адресов по шаблону
+   ```python
+   pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+   possible_emails = re.findall(pattern, text)
+   ```
+   · Используется регулярное выражение для поиска email-адресов
+   · Паттерн ищет: локальная часть + @ + домен + точка + доменная зона (2+ символа)
+3. Валидация найденных адресов
+   ```python
+   for email in possible_emails:
+       split_email = re.split(r'[@.]', email)
+       if (split_email[-2].upper() in possible_domain and
+               split_email[-1].upper() in possible_domain):
+           valid_emails.append(email)
+   ```
+   · Каждый email разбивается на части по символам @ и .
+   · Проверяется, находятся ли домен и доменная зона в белом списке
+4. Возврат результата
+   ```python
+   return list(set(valid_emails))
+   ```
+   · Удаляются дубликаты через преобразование в set
+   · Возвращается список уникальных валидных email-адресов
+
+Потенциальные проблемы:
+
+1. Логика проверки доменов может быть некорректной - она проверяет и домен, и доменную зону как отдельные сущности, что не всегда правильно.
+2. Нет обработки исключений при работе с файлом.
+3. Файл не закрывается - лучше использовать контекстный менеджер with.
+
+Улучшенная версия:
+
+```python
+def find_emails(text) -> list:
+    # Загрузка доменов с использованием контекстного менеджера
+    try:
+        with open('data.iana.txt', 'r') as f:
+            possible_domain = {line.strip().upper() for line in f}
+    except FileNotFoundError:
+        print("Файл с доменами не найден")
+        return []
+    
+    pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+    possible_emails = re.findall(pattern, text)
+    valid_emails = []
+    
+    for email in possible_emails:
+        domain_part = email.split('@')[-1]  # Получаем доменную часть
+        if domain_part.upper() in possible_domain:
+            valid_emails.append(email)
+    
+    return list(set(valid_emails))
+```
+
+Функция полезна для фильтрации email-адресов по доверенным доменам, например, при парсинге контактов из текста.
